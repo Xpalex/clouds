@@ -1,0 +1,71 @@
+---
+- name: Update the apt package index
+  become: yes
+  apt:
+    name: "*"
+    state: latest
+    update_cache: yes
+    force_apt_get: yes
+- name: Install packages for apt add repository over HTTPS
+  become: yes
+  apt:
+    name: "{{ packagesdep }}"
+    force_apt_get: yes
+    state: latest
+    update_cache: yes
+  vars:
+    packagesdep:
+      - git
+      - apt-transport-https
+      - ca-certificates
+      - wget
+      - software-properties-common
+      - gnupg2
+      - curl
+- name: Add Apt signing key from official docker repo
+  apt_key:
+    url: https://download.docker.com/linux/debian/gpg
+    state: present
+- name: add docker official repository for Debian Stretch
+  apt_repository:
+    repo: deb [arch=amd64] https://download.docker.com/linux/debian stretch stable
+    state: present
+- name: Index new repo into the cache
+  become: yes
+  apt:
+    name: "*"
+    state: latest
+    update_cache: yes
+    force_apt_get: yes
+- name: actually install docker
+  apt:
+    name: "docker-ce"
+    state: latest
+
+- name: Download and install Docker Compose
+  get_url:
+    url: https://github.com/docker/compose/releases/download/1.21.2/docker-compose-Linux-x86_64
+    dest: /usr/bin/docker-compose
+    mode: 0755
+
+- name: Creates directory for jenkins
+  file:
+    path: /tmp/jenkins_home
+    state: directory
+
+- name: Changing perm of "/var/run/docker.sock", adding "666"
+  become: True
+  file:
+    dest: /var/run/docker.sock
+    mode: 666
+
+- name: Change file permission
+  file:
+    path: /tmp/jenkins_home
+    owner: "1000"
+    group: "1000"
+- name: Run container
+  become: True
+  shell:
+    cmd: "docker-compose -f docker-compose.yml up -d"
+    chdir: /tmp/srv_docker_data
